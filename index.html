@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Interactive India Map — Popup Slideshow</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --accent:#ff3b30;
+    --overlay-bg:rgba(0,0,0,0.6);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    padding:0;
+    font-family:system-ui, Arial, sans-serif;
+    background:var(--bg);
+    color:#111;
+  }
+
+  h2{ text-align:center; margin:12px 0; position:relative; z-index:3; }
+
+  /* ========== FULLSCREEN MAP (background) ========= */
+  .map-wrap{
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+  }
+  .map{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  /* hotspot-layer sits above map and receives pointer events */
+  .hotspot-layer{
+    position:fixed;
+    inset:0;
+    z-index:2;
+    pointer-events:auto;
+  }
+
+  /* HOTSPOTS */
+  .hotspot{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    width:36px;
+    height:36px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:3;
+  }
+  .hotspot .dot{
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 12px rgba(255,59,48,0.7);
+    animation:pulse 1.8s infinite;
+  }
+  .hotspot .label{
+    position:absolute;
+    top:44px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,0.72);
+    color:#fff;
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:12px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+  }
+  .hotspot:hover .label,
+  .hotspot:focus .label{ opacity:1; }
+
+  @keyframes pulse{
+    0%{transform:scale(1)}50%{transform:scale(1.35)}100%{transform:scale(1)}
+  }
+
+  /* ========== OVERLAY & FULLSCREEN POPUP ========= */
+  .overlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:var(--overlay-bg);
+    z-index:9999;
+    padding:16px;
+  }
+  .overlay.visible{ display:flex; }
+
+  /* card is full screen */
+  .card {
+    background:#000;
+    width:100vw;
+    height:100vh;
+    max-width:none;
+    max-height:none;
+    border-radius:0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  /* floating close button */
+  .close{
+    position:absolute;
+    top:14px;
+    right:14px;
+    border:none;
+    background:#111;
+    color:#fff;
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:20px;
+    z-index:99999;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* responsive fallback */
+  @media (max-width:960px){
+    .card{ width:92%; height:72vh; }
+  }
+
+  /* media area occupies full card */
+  .media-wrap{
+    flex:1;
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    outline:none;
+  }
+
+  /* make media fill popup area while preserving aspect */
+  .media-wrap img,
+  .media-wrap video {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+
+  /* prevent background scrolling while popup open */
+  body.no-scroll{ overflow:hidden; }
+</style>
+</head>
+<body>
+
+<h2>Interactive India Map</h2>
+
+<!-- Fullscreen map -->
+<div class="map-wrap" aria-hidden="true">
+  <img class="map" src="india-map.png" alt="India map">
+</div>
+
+<!-- Hotspot layer (above the map) -->
+<div class="hotspot-layer" aria-hidden="false">
+  <!-- Hotspots: use percentage top/left relative to map container -->
+  <button class="hotspot" style="top:62%; left:37%;" data-label="Mumbai"
+          data-gallery="image:media/Mumbai/1.jpg|image:media/Mumbai/2.jpg|image:media/Mumbai/3.jpg|image:media/Mumbai/4.jpg|image:media/Mumbai/5.jpg|image:media/Mumbai/6.jpg|image:media/Mumbai/7.jpg|image:media/Mumbai/8.jpg|image:media/Mumbai/9.jpg">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="label">Mumbai</span>
+  </button>
+
+  <button class="hotspot" style="top:34%; left:43%;" data-label="Delhi"
+          data-gallery="video:media/Delhi/1.mp4|video:media/Delhi/2.mp4|video:media/Delhi/3.mp4|video:media/Delhi/4.mp4|video:media/Delhi/5.mp4|video:media/Delhi/6.mp4|video:media/Delhi/7.mp4|video:media/Delhi/8.mp4|video:media/Delhi/9.mp4">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="label">Delhi</span>
+  </button>
+
+  <button class="hotspot" style="top:81%; left:47%;" data-label="Chennai"
+          data-gallery="video:media/Chennai/1.mp4|video:media/Chennai/2.mp4|video:media/Chennai/3.mp4|video:media/Chennai/4.mp4|video:media/Chennai/5.mp4|video:media/Chennai/6.mp4|video:media/Chennai/7.mp4|video:media/Chennai/8.mp4|video:media/Chennai/9.mp4">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="label">Chennai</span>
+  </button>
+
+  <button class="hotspot" style="top:15%; left:43%;" data-label="Jammu & Kashmir"
+          data-gallery="image:media/Jammu_Kashmir/1.jpg|image:media/Jammu_Kashmir/2.jpg|image:media/Jammu_Kashmir/3.jpg|image:media/Jammu_Kashmir/4.jpg|image:media/Jammu_Kashmir/5.jpg|image:media/Jammu_Kashmir/6.jpg|image:media/Jammu_Kashmir/7.jpg|image:media/Jammu_Kashmir/8.jpg|image:media/Jammu_Kashmir/9.jpg">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="label">Jammu & Kashmir</span>
+  </button>
+
+  <button class="hotspot" style="top:73.5%; left:38.5%;" data-label="Goa"
+          data-gallery="image:media/Goa/1.jpg|image:media/Goa/2.jpg|image:media/Goa/3.jpg|image:media/Goa/4.jpg|image:media/Goa/5.jpg|image:media/Goa/6.jpg|image:media/Goa/7.jpg">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="label">Goa</span>
+  </button>
+</div>
+
+<!-- Overlay & popup (no header, full-screen media) -->
+<div class="overlay" id="overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Media viewer">
+  <div class="card" role="document">
+    <!-- floating close button kept -->
+    <button class="close" id="closeBtn" aria-label="Close popup">✕</button>
+
+    <!-- media area fills the card -->
+    <div class="media-wrap" id="mediaWrap" tabindex="0" aria-live="polite"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* parse data-gallery string -> [{type,url}, ...] */
+  function parseGallery(str){
+    if(!str) return [];
+    return str.split("|").map(item=>{
+      const [typeRaw, ...rest] = item.split(":");
+      const type = (typeRaw||'image').trim();
+      const url = rest.join(":").trim();
+      return { type, url };
+    }).filter(i=>i.url);
+  }
+
+  const overlay = document.getElementById('overlay');
+  const mediaWrap = document.getElementById('mediaWrap');
+  const closeBtn = document.getElementById('closeBtn');
+
+  let gallery = [];
+  let index = 0;
+  let timer = null;
+
+  // delays (ms)
+  const IMAGE_DELAY = 2000;
+  const VIDEO_DELAY = 8000;
+
+  function clearTimer(){
+    if(timer){ clearTimeout(timer); timer = null; }
+  }
+
+  // show specific gallery item
+  function showItem(i){
+    if(!gallery || gallery.length === 0) return;
+    index = (i + gallery.length) % gallery.length;
+    const item = gallery[index];
+
+    // cleanup previous
+    clearTimer();
+    mediaWrap.innerHTML = '';
+
+    if(item.type === 'video'){
+      const v = document.createElement('video');
+      v.src = item.url;
+      v.controls = true;
+      v.autoplay = true;
+      v.playsInline = true;
+      v.style.width = '100%';
+      v.style.height = '100%';
+      v.style.objectFit = 'cover';
+      mediaWrap.appendChild(v);
+
+      // advance after fixed VIDEO_DELAY
+      timer = setTimeout(()=> showItem(index+1), VIDEO_DELAY);
+
+    } else {
+      const img = document.createElement('img');
+      img.src = item.url;
+      img.alt = item.url.split('/').pop() || '';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      mediaWrap.appendChild(img);
+
+      timer = setTimeout(()=> showItem(index+1), IMAGE_DELAY);
+    }
+  }
+
+  /* Fullscreen helpers with vendor fallbacks */
+  function isFullScreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+
+  function requestFullscreen(element) {
+    if (!element) return;
+    if (element.requestFullscreen) return element.requestFullscreen();
+    if (element.webkitRequestFullscreen) return element.webkitRequestFullscreen();
+    if (element.msRequestFullscreen) return element.msRequestFullscreen();
+  }
+
+  function exitFullscreen() {
+    if (document.exitFullscreen) return document.exitFullscreen();
+    if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+    if (document.msExitFullscreen) return document.msExitFullscreen();
+  }
+
+  function openPopup(g){
+  // request fullscreen only if not already fullscreen
+  if (!isFullScreen()) {
+    // request fullscreen on the overlay so the overlay + card become fullscreen
+    requestFullscreen(overlay).catch(()=>{/* ignore */});
+  }
+
+  gallery = g || [];
+  if(gallery.length === 0){
+    mediaWrap.innerHTML = '<div style="padding:20px; color:#fff">No media</div>';
+    overlay.classList.add('visible');
+    overlay.setAttribute('aria-hidden','false');
+    document.body.classList.add('no-scroll');
+    mediaWrap.focus();
+    return;
+  }
+  showItem(0);
+  overlay.classList.add('visible');
+  overlay.setAttribute('aria-hidden','false');
+  document.body.classList.add('no-scroll');
+  mediaWrap.focus();
+}
+
+
+  function closePopup(){
+    overlay.classList.remove('visible');
+    overlay.setAttribute('aria-hidden','true');
+    document.body.classList.remove('no-scroll');
+    clearTimer();
+    // stop video playback (if any)
+    const v = mediaWrap.querySelector('video');
+    if(v){ v.pause(); v.removeAttribute('src'); }
+    mediaWrap.innerHTML = '';
+
+    // exit fullscreen if currently fullscreen
+    if (isFullScreen()) {
+      exitFullscreen().catch(()=>{/* ignore */});
+    }
+  }
+
+  // attach hotspots
+  document.querySelectorAll('.hotspot').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const gallery = parseGallery(btn.dataset.gallery || '');
+      openPopup(gallery);
+    });
+
+    // keyboard activation
+    btn.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        btn.click();
+      }
+    });
+  });
+
+  // close UI by clicking outside media (overlay), close button, or pressing Esc
+  overlay.addEventListener('click', (e)=>{
+    if(e.target === overlay) closePopup();
+  });
+
+  closeBtn.addEventListener('click', closePopup);
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && overlay.classList.contains('visible')) {
+      closePopup();
+    }
+  });
+
+  // fullscreenchange listener - if user exits fullscreen externally keep popup visible
+  document.addEventListener('fullscreenchange', ()=>{
+    if (!isFullScreen() && overlay.classList.contains('visible')) {
+      document.body.classList.add('no-scroll');
+    }
+  });
+
+  document.addEventListener('webkitfullscreenchange', ()=> {
+    if (!isFullScreen() && overlay.classList.contains('visible')) document.body.classList.add('no-scroll');
+  });
+  document.addEventListener('msfullscreenchange', ()=> {
+    if (!isFullScreen() && overlay.classList.contains('visible')) document.body.classList.add('no-scroll');
+  });
+
+})();
+</script>
+</body>
+</html>
