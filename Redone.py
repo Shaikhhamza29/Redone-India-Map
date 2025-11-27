@@ -1,84 +1,316 @@
+import os
+os.environ["VLC_VERBOSE"] = "-1"
+os.environ["PYTHON_VLC_VERBOSE"] = "-1"
+
+
+import matplotlib
+
+
+
+
+matplotlib.use("TkAgg")
+matplotlib.rcParams["toolbar"] = "none"
+import matplotlib.font_manager as fm
+matplotlib.rcParams['font.family'] = 'DejaVu Sans'
+
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
-from PIL import Image, ImageDraw
-
-# 1. Load India shapefile
-shapefile_path = r"D:\Projects\India_map_hostpots\in_shp\in.shp"
-states = gpd.read_file(shapefile_path).to_crs(epsg=4326)
-
-# Merge all states into a single India shape (no deprecation)
-india_shape = states.union_all()   # returns a single (Multi)Polygon
-
-# 2. Load your collage image  <-- make sure this path & filename are correct
-image_path = r"D:\Projects\India_map_hostpots\trryyy.jpg"
-img = Image.open(image_path).convert("RGBA")
-width, height = img.size
-
-# 3. Compute bounds of India geometry
-minx, miny, maxx, maxy = india_shape.bounds
-bbox_w = maxx - minx
-bbox_h = maxy - miny
-
-# Use UNIFORM scale to avoid distortion
-scale = min(width / bbox_w, height / bbox_h)
-
-# Center India in the image
-x_offset = (width - scale * bbox_w) / 2.0
-y_offset = (height - scale * bbox_h) / 2.0
-
-# 4. Create a blank mask (grayscale: 0 = transparent, 255 = opaque)
-mask = Image.new("L", (width, height), 0)
-draw = ImageDraw.Draw(mask)
+import matplotlib.pyplot as plt
+from shapely.geometry import Point
+from tkinter import Toplevel, Label, Button
+from PIL import Image, ImageTk
+import tkinter as tk
+import vlc   # VLC player
 
 
-def draw_geom(geom):
-    """Draw Polygon or MultiPolygon onto the mask."""
-    if geom.is_empty:
+# ================== SCREEN SIZE ===================
+root = tk.Tk()
+root.withdraw()
+SCREEN_W = root.winfo_screenwidth()
+SCREEN_H = root.winfo_screenheight()
+root.destroy()
+
+
+# ================== IMAGE SLIDESHOW ===================
+def open_slideshow(image_folder):
+    images = [f for f in os.listdir(image_folder) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+    if not images:
+        print("No images found!")
         return
 
-    # Normalize to list of Polygons
-    if geom.geom_type == "Polygon":
-        polys = [geom]
-    elif geom.geom_type == "MultiPolygon":
-        polys = list(geom.geoms)
-    else:
-        # If GeometryCollection etc., draw only polygon parts
-        polys = [g for g in geom.geoms if g.geom_type in ("Polygon", "MultiPolygon")] \
-                if hasattr(geom, "geoms") else []
+    slideshow = Toplevel()
+    slideshow.title("Image Slideshow")
+    slideshow.attributes("-fullscreen", True)
 
-    for poly in polys:
-        if poly.is_empty:
-            continue
+    slideshow.focus_set()
+    slideshow.grab_set()
 
-        # Exterior ring
-        exterior = []
-        for x, y in poly.exterior.coords:
-            px = (x - minx) * scale + x_offset
-            py = height - ((y - miny) * scale + y_offset)  # invert Y
-            exterior.append((px, py))
+    index = {"i": 0}
+    img_label = Label(slideshow)
+    img_label.pack(expand=True)
 
-        draw.polygon(exterior, fill=255, outline=255)
+    def show_image():
+        img_path = os.path.join(image_folder, images[index["i"]])
+        img = Image.open(img_path)
+        img = img.resize((SCREEN_W, SCREEN_H))
+        photo = ImageTk.PhotoImage(img)
+        img_label.config(image=photo)
+        img_label.image = photo
 
-        # Interior holes (if any)
-        for interior in poly.interiors:
-            hole = []
-            for x, y in interior.coords:
-                px = (x - minx) * scale + x_offset
-                py = height - ((y - miny) * scale + y_offset)
-                hole.append((px, py))
-            draw.polygon(hole, fill=0, outline=0)
+    def next_img():
+        index["i"] = (index["i"] + 1) % len(images)
+        show_image()
+
+    def autoplay():
+        next_img()
+        slideshow.after(4000, autoplay)
+
+    def close_show(event=None):
+        slideshow.grab_release()
+        slideshow.destroy()
+
+    Button(slideshow, text="Close", command=close_show,
+           font=("Arial", 18), fg="white", bg="red").pack(side="bottom")
+
+    slideshow.bind("<Escape>", close_show)
+
+    show_image()
+    autoplay()
 
 
-# 5. Draw India shape onto mask
-draw_geom(india_shape)
+# ================== VIDEO SLIDESHOW (VLC) ===================
+# ================== VIDEO SLIDESHOW (VLC FIXED) ===================
+# ================== VIDEO SLIDESHOW (VLC FIXED CLEAN) ===================
+def open_video_slideshow(video_folder):
+    videos = [f for f in os.listdir(video_folder) if f.lower().endswith((".mp4", ".avi", ".mov", ".mkv"))]
+    if not videos:
+        print("No videos found!")
+        return
 
-# 6. Apply mask to original image
-result = Image.new("RGBA", (width, height))
-result.paste(img, (0, 0), mask)
+    video_window = Toplevel()
+    video_window.title("Video Slideshow")
+    video_window.attributes("-fullscreen", True)
+    video_window.focus_set()
+    video_window.grab_set()
 
-# 7. Save and show
-output_path = r"D:\Projects\India_map_hostpots\media\india_masked.png"
-result.save(output_path)
-result.show()
+    instance = vlc.Instance(
+        "--no-video-title-show",
+        "--avcodec-hw=none",          # force software decoding
+        "--no-plugins-cache",
+        "--no-sub-autodetect-file",
+        "--vout=opengl",              # <---- FIX: avoid direct3d11 crashes
+        "--drop-late-frames",
+        "--skip-frames"
+    )
 
-print("Saved:", output_path)
+    player = instance.media_player_new()
+    current = {"i": 0}
+
+    def play_video():
+        video_path = os.path.join(video_folder, videos[current["i"]])
+        media = instance.media_new(video_path)
+        player.set_media(media)
+
+        # Delay attach to prevent SetThumbNailClip failure
+        def attach():
+            player.set_hwnd(video_window.winfo_id())
+            player.play()
+
+        video_window.after(250, attach)  # ensure window allocated fully
+
+    def next_video():
+        current["i"] = (current["i"] + 1) % len(videos)
+        play_video()
+        video_window.after(4000, next_video)
+
+    def close_video(event=None):
+        player.stop()
+        video_window.grab_release()
+        video_window.destroy()
+    video_window.bind("<Escape>", close_video)
+
+    play_video()
+    video_window.after(4000, next_video)
+
+
+def open_manual_gallery(folder):
+    media_files = [f for f in os.listdir(folder)
+                   if f.lower().endswith((".png", ".jpg", ".jpeg", ".mp4", ".avi", ".mov", ".mkv"))]
+
+    if not media_files:
+        print("No media found!")
+        return
+
+    gallery = Toplevel()
+    gallery.title("Manual Viewer")
+    gallery.attributes("-fullscreen", True)
+    gallery.focus_set()
+    gallery.grab_set()
+    gallery.configure(bg="black")
+
+    index = {"i": 0}
+    player = None
+
+    # === GRID LAYOUT (fix for hidden buttons) ===
+    gallery.grid_rowconfigure(0, weight=1)
+    gallery.grid_columnconfigure(0, weight=1)
+
+    top_frame = tk.Frame(gallery, bg="black")
+    top_frame.grid(row=0, column=0, sticky="nsew")
+
+    control_frame = tk.Frame(gallery, bg="gray15", height=100)
+    control_frame.grid(row=1, column=0, sticky="ew")
+
+    display_label = Label(top_frame, bg="black")
+    display_label.pack(fill="both", expand=True)
+
+    def show_media():
+        nonlocal player
+        file_path = os.path.join(folder, media_files[index["i"]])
+
+        if player:
+            player.stop()
+            player = None
+
+        if file_path.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
+            instance = vlc.Instance("--no-video-title-show")
+            player = instance.media_player_new()
+            media = instance.media_new(file_path)
+            player.set_media(media)
+
+            def attach():
+                try:
+                    player.set_hwnd(display_label.winfo_id())
+                    player.play()
+                except:
+                    pass
+
+            gallery.after(200, attach)
+
+        else:
+            img = Image.open(file_path)
+            img = img.resize((SCREEN_W, SCREEN_H))
+            photo = ImageTk.PhotoImage(img)
+            display_label.config(image=photo)
+            display_label.image = photo
+
+    def next_media(event=None):
+        index["i"] = (index["i"] + 1) % len(media_files)
+        show_media()
+
+    def prev_media(event=None):
+        index["i"] = (index["i"] - 1) % len(media_files)
+        show_media()
+
+    def close_gallery(event=None):
+        if player:
+            player.stop()
+        gallery.grab_release()
+        gallery.destroy()
+
+    # === BUTTONS now visible ===
+    Button(control_frame, text="⬅ Prev", font=("Arial", 22),
+           command=prev_media, width=12, bg="lightgray").pack(side="left", padx=80, pady=20)
+
+    Button(control_frame, text="Next ➡", font=("Arial", 22),
+           command=next_media, width=12, bg="lightgray").pack(side="right", padx=80, pady=20)
+
+    Button(control_frame, text="Close ✖", font=("Arial", 18),
+           command=close_gallery, fg="white", bg="red", width=10).pack(side="bottom")
+
+    gallery.bind("<Right>", next_media)
+    gallery.bind("<Left>", prev_media)
+    gallery.bind("<Escape>", close_gallery)
+
+    show_media()
+
+
+
+# ===================== INDIA MAP =====================
+shapefile_path = r"D:\Projects\India_map_hostpots\in_shp\in.shp"
+
+
+
+STATE_COL = "name"
+states = gpd.read_file(shapefile_path).to_crs(epsg=4326)
+states[STATE_COL] = states[STATE_COL].str.encode('ascii', 'ignore').str.decode('ascii')
+
+states["is_selected"] = False
+
+fig, ax = plt.subplots()
+
+
+def draw_map():
+    ax.clear()
+    colors = ["yellow" if sel else "#dddddd" for sel in states["is_selected"]]
+    states.plot(ax=ax, edgecolor="black", facecolor=colors)
+
+    for _, row in states.iterrows():
+        centroid = row.geometry.centroid
+        ax.text(centroid.x, centroid.y, row[STATE_COL],
+                fontsize=8, ha="center", va="center",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.6))
+
+    ax.set_axis_off()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.canvas.draw_idle()
+
+
+draw_map()
+try: plt.get_current_fig_manager().full_screen_toggle()
+except: pass
+
+
+STATE_ACTIONS = {
+    "maharashtra": ("slideshow", r"D:\Projects\India_map_hostpots\media\Mumbai"),
+    "delhi": ("video", r"D:\Projects\India_map_hostpots\media\Delhi"),
+    "goa": ("manual", r"D:\Projects\India_map_hostpots\media\Goa"),
+    "tamil nadu": ("video", r"D:\Projects\India_map_hostpots\media\Chennai"),
+    "kerala": ("manual", r"D:\Projects\India_map_hostpots\media\Kerala"),
+    "gujarat": ("slideshow", r"D:\Projects\India_map_hostpots\media\Gujarat"),
+    "jammu and kashmir": ("video", r"D:\Projects\India_map_hostpots\media\Jammu_Kashmir"),
+    "uttar pradesh": ("manual", r"D:\Projects\India_map_hostpots\media\Uttar_predesh"),
+    "andaman and nicobar": ("slideshow", r"D:\Projects\India_map_hostpots\media\Andaman_and_Nicobar"),
+    "karnataka": ("manual", r"D:\Projects\India_map_hostpots\media\Karnataka"),
+}
+
+
+
+def on_click(event):
+    if event.inaxes is not ax:
+        return
+
+    pt = Point(event.xdata, event.ydata)
+    mask = states.geometry.contains(pt)
+    if not mask.any():
+        return
+
+    idx = states.index[mask][0]
+    state_name = states.at[idx, STATE_COL]
+
+    states["is_selected"] = False
+    states.at[idx, "is_selected"] = True
+    draw_map()
+
+    key = state_name.lower().replace("&", "and").strip()
+    if key in STATE_ACTIONS:
+        action, folder = STATE_ACTIONS[key]
+        if action in ("image", "slideshow"):  # <---- FIX
+            open_slideshow(folder)
+        elif action == "video":
+            open_video_slideshow(folder)
+        elif action == "manual":
+            open_manual_gallery(folder)
+
+
+fig.canvas.mpl_connect("button_press_event", on_click)
+
+
+def map_escape(event):
+    if event.key == "escape":
+        print("Exiting map...")
+        plt.close(fig)
+
+fig.canvas.mpl_connect("key_press_event", map_escape)
+
+
+plt.show()

@@ -2,12 +2,7 @@ import os
 os.environ["VLC_VERBOSE"] = "-1"
 os.environ["PYTHON_VLC_VERBOSE"] = "-1"
 
-
 import matplotlib
-
-
-
-
 matplotlib.use("TkAgg")
 matplotlib.rcParams["toolbar"] = "none"
 import matplotlib.font_manager as fm
@@ -19,7 +14,7 @@ from shapely.geometry import Point
 from tkinter import Toplevel, Label, Button
 from PIL import Image, ImageTk
 import tkinter as tk
-import vlc   # VLC player
+import vlc
 
 
 # ================== SCREEN SIZE ===================
@@ -62,7 +57,7 @@ def open_slideshow(image_folder):
 
     def autoplay():
         next_img()
-        slideshow.after(4000, autoplay)
+        slideshow.after(1000, autoplay)
 
     def close_show(event=None):
         slideshow.grab_release()
@@ -76,10 +71,6 @@ def open_slideshow(image_folder):
     show_image()
     autoplay()
 
-
-# ================== VIDEO SLIDESHOW (VLC) ===================
-# ================== VIDEO SLIDESHOW (VLC FIXED) ===================
-# ================== VIDEO SLIDESHOW (VLC FIXED CLEAN) ===================
 def open_video_slideshow(video_folder):
     videos = [f for f in os.listdir(video_folder) if f.lower().endswith((".mp4", ".avi", ".mov", ".mkv"))]
     if not videos:
@@ -120,7 +111,7 @@ def open_video_slideshow(video_folder):
     def next_video():
         current["i"] = (current["i"] + 1) % len(videos)
         play_video()
-        video_window.after(4000, next_video)
+        video_window.after(2000, next_video)
 
     def close_video(event=None):
         player.stop()
@@ -129,7 +120,7 @@ def open_video_slideshow(video_folder):
     video_window.bind("<Escape>", close_video)
 
     play_video()
-    video_window.after(4000, next_video)
+    video_window.after(2000, next_video)
 
 
 def open_manual_gallery(folder):
@@ -274,7 +265,7 @@ def on_click(event):
     key = state_name.lower().replace("&", "and").strip()
     if key in STATE_ACTIONS:
         action, folder = STATE_ACTIONS[key]
-        if action == "image":
+        if action == "slideshow":
             open_slideshow(folder)
         elif action == "video":
             open_video_slideshow(folder)
