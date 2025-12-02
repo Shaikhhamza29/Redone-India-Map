@@ -25,11 +25,6 @@ This repository includes a browser-viewable map along with scripts to process an
 ├── india-culture-map.webp # Cultural version map preview
 └── README.md # Documentation (this file)
 
-yaml
-Copy code
-
----
-
 ## 🚀 Installation & Setup
 
 ### 1. Clone the repository
@@ -38,14 +33,15 @@ git clone https://github.com/Shaikhhamza29/Redone-India-Map.git
 
 cd Redone-India-Map
 
-###2. Install Python dependencies
+### 2. Install Python dependencies
 (Create a requirements.txt later if needed.)
 pip install geopandas shapely matplotlib fiona
 
 
-###3. Process the shapefile data
+### 3. Process the shapefile data
 python Redone.py
 
 
-###4. View the map
+### 4. View the map
 Simply open index.html in any browser
+
