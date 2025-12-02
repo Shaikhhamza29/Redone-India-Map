@@ -1,23 +1,51 @@
-﻿# Redone-India-Map
 # Redone-India-Map
 
-## About  
-This project presents a reworked map of India, leveraging vector/shapefile data and web-display capabilities. It allows users to visualize, explore and interact with India’s geographic map via a browser interface and associated Python scripts.
+A simple and interactive project that visualizes a redesigned map of India using HTML and Python-based preprocessing of shapefile data.  
+This repository includes a browser-viewable map along with scripts to process and update geographical data.
 
-## Features  
-- A web HTML page (`index.html`) that displays the map of India.  
-- A Python script (`Redone.py`) to process or transform shapefile/vector data for the map.  
-- Supporting images and assets (e.g., `india-map.png`, `india-culture-map.webp`) to illustrate the map and layout.  
-- Source shapefile folder (`in_shp`) for the raw map geometry input.  
-- Additional experiment script (`try.py`) for testing or development.
+---
 
-## Directory Structure  
+## 📌 Features
+- Interactive India map viewable through `index.html`
+- Python script (`Redone.py`) to process shapefile/vector data
+- Shapefile input folder (`in_shp/`) included for map geometry
+- Additional experimental script (`try.py`)
+- Sample images (`india-map.png`, `india-culture-map.webp`) for reference
 
-## Installation & Setup  
-1. Clone this repository:  
-   ```bash
-   git clone https://github.com/Shaikhhamza29/Redone-India‐Map.git
-   cd Redone-India‐Map
-pip install -r requirements.txt
+---
+
+## 📂 Project Structure
+/
+├── .idea/ # IDE metadata (PyCharm/IntelliJ)
+├── in_shp/ # Input shapefile / vector data
+├── index.html # Web page for viewing the processed map
+├── Redone.py # Main Python script for map processing
+├── try.py # Experimental/testing script
+├── india-map.png # Sample map preview
+├── india-culture-map.webp # Cultural version map preview
+└── README.md # Documentation (this file)
+
+yaml
+Copy code
+
+---
+
+## 🚀 Installation & Setup
+
+### 1. Clone the repository
+
+git clone https://github.com/Shaikhhamza29/Redone-India-Map.git
+
+cd Redone-India-Map
+
+###2. Install Python dependencies
+(Create a requirements.txt later if needed.)
+pip install geopandas shapely matplotlib fiona
+
+
+###3. Process the shapefile data
 python Redone.py
 
+
+###4. View the map
+Simply open index.html in any browser
